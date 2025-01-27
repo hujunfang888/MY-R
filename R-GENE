@@ -19,7 +19,7 @@ data2_clean <- data2 %>% drop_na(pvalue, padj)
 logfc_threshold <- 1
 padj_threshold <- 0.05
 
-# selecting significantly up-regulated and down-regulated genes
+# selecting significantly upregulated and downregulated genes
 upregulated1 <- data1_clean %>% filter(log2FoldChange > logfc_threshold, padj < padj_threshold)
 downregulated1 <- data1_clean %>% filter(log2FoldChange < -logfc_threshold, padj < padj_threshold)
 
@@ -75,12 +75,12 @@ ggplot(data2_clean, aes(x = baseMean, y = log2FoldChange)) +
   scale_x_log10() +
   labs(title = "MA Plot: I_vs_E", x = "Mean Expression (log10 scale)", y = "Log2 Fold Change") 
 
-# A_vs_E OF p VALUE
+# A_vs_E Of p-VALUE
 ggplot(data1_clean, aes(x = pvalue)) +
   geom_histogram(binwidth = 0.05, fill = "green", color = "black") +
   labs(title = "P-value Distribution: A_vs_E", x = "P-value", y = "Frequency") 
 
-# I_vs_E OF p VALUE
+# I_vs_E Of p-VALUE
 ggplot(data2_clean, aes(x = pvalue)) +
   geom_histogram(binwidth = 0.05, fill = "green", color = "black") +
   labs(title = "P-value Distribution: I_vs_E", x = "P-value", y = "Frequency") 
@@ -92,7 +92,7 @@ top_genes <- data1_clean %>%
   arrange(padj) %>%
   head(50)
 
-#matrix
+# creat matrix
 heatmap_data <- top_genes %>%
   select(gene_id, log2FoldChange) %>%
   column_to_rownames("gene_id")
@@ -127,5 +127,57 @@ pheatmap(heatmap_matrix_2,
 
 write.csv(top_genes, "Top_50_Genes_A_vs_E.csv", row.names = FALSE)
 write.csv(top_genes_2, "Top_50_Genes_I_vs_E.csv", row.names = FALSE)
+
+
+## the number of significantly upregulated and downregulated genes in each comparison
+
+#creat dataframes
+data_a_vs_e <- read.csv("Top_50_Genes_A_vs_E.csv", header = TRUE)
+data_i_vs_e <- read.csv("Top_50_Genes_I_vs_E.csv", header = TRUE)
+logfc_threshold <- 1  
+padj_threshold <- 0.05  
+
+# selecting  A_vs_E data
+upregulated_a_vs_e <- data_a_vs_e[data_a_vs_e$log2FoldChange > logfc_threshold & data_a_vs_e$padj < padj_threshold, ]
+downregulated_a_vs_e <- data_a_vs_e[data_a_vs_e$log2FoldChange < -logfc_threshold & data_a_vs_e$padj < padj_threshold, ]
+
+# selecting I_vs_E data
+upregulated_i_vs_e <- data_i_vs_e[data_i_vs_e$log2FoldChange > logfc_threshold & data_i_vs_e$padj < padj_threshold, ]
+downregulated_i_vs_e <- data_i_vs_e[data_i_vs_e$log2FoldChange < -logfc_threshold & data_i_vs_e$padj < padj_threshold, ]
+
+
+cat("A_vs_E Upregulated Genes:", nrow(upregulated_a_vs_e), "\n")
+cat("A_vs_E Downregulated Genes:", nrow(downregulated_a_vs_e), "\n")
+cat("I_vs_E Upregulated Genes:", nrow(upregulated_i_vs_e), "\n")
+cat("I_vs_E Downregulated Genes:", nrow(downregulated_i_vs_e), "\n")
+
+# A_vs_E Summary
+cat("A_vs_E - P-Value Summary:\n")
+cat("Mean P-Value:", mean(data_a_vs_e$pvalue, na.rm = TRUE), "\n")
+cat("Standard Deviation of P-Value:", sd(data_a_vs_e$pvalue, na.rm = TRUE), "\n")
+cat("Mean Log2 Fold Change:", mean(data_a_vs_e$log2FoldChange, na.rm = TRUE), "\n")
+cat("Log2 Fold Change Range:", range(data_a_vs_e$log2FoldChange, na.rm = TRUE), "\n")
+
+# I_vs_E Summary
+cat("I_vs_E - P-Value Summary:\n")
+cat("Mean P-Value:", mean(data_i_vs_e$pvalue, na.rm = TRUE), "\n")
+cat("Standard Deviation of P-Value:", sd(data_i_vs_e$pvalue, na.rm = TRUE), "\n")
+cat("Mean Log2 Fold Change:", mean(data_i_vs_e$log2FoldChange, na.rm = TRUE), "\n")
+cat("Log2 Fold Change Range:", range(data_i_vs_e$log2FoldChange, na.rm = TRUE), "\n")
+
+# Create a summary data frame
+results <- data.frame(
+  Comparison = c("A_vs_E", "I_vs_E"),
+  Upregulated_Genes = c(nrow(upregulated_a_vs_e), nrow(upregulated_i_vs_e)),
+  Downregulated_Genes = c(nrow(downregulated_a_vs_e), nrow(downregulated_i_vs_e)),
+  Mean_P_Value = c(mean(data_a_vs_e$pvalue, na.rm = TRUE), mean(data_i_vs_e$pvalue, na.rm = TRUE)),
+  Log2FC_Mean = c(mean(data_a_vs_e$log2FoldChange, na.rm = TRUE), mean(data_i_vs_e$log2FoldChange, na.rm = TRUE)),
+  Log2FC_Min = c(range(data_a_vs_e$log2FoldChange, na.rm = TRUE)[1], range(data_i_vs_e$log2FoldChange, na.rm = TRUE)[1]),
+  Log2FC_Max = c(range(data_a_vs_e$log2FoldChange, na.rm = TRUE)[2], range(data_i_vs_e$log2FoldChange, na.rm = TRUE)[2])
+)
+
+# Save this summary as a CSV file
+write.csv(results, "Differential_Expression_Results.csv", row.names = FALSE)
+cat("The results have been saved to 'Differential_Expression_Results.csv'\n")
 
 
