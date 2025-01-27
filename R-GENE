@@ -1,0 +1,131 @@
+install.packages("pheatmap")
+library(pheatmap)
+library(tidyverse)
+library(ggplot2)
+
+data1 <- read_tsv("A_vs_E.deseq2.results.tsv")
+data2 <- read_tsv("I_vs_E.deseq2.results.tsv")
+
+glimpse(data1)
+
+# check missing values
+sum(is.na(data1$pvalue))  
+sum(is.na(data1$padj))     
+
+# remove rows with missing values
+data1_clean <- data1 %>% drop_na(pvalue, padj)
+data2_clean <- data2 %>% drop_na(pvalue, padj)
+
+logfc_threshold <- 1
+padj_threshold <- 0.05
+
+# selecting significantly up-regulated and down-regulated genes
+upregulated1 <- data1_clean %>% filter(log2FoldChange > logfc_threshold, padj < padj_threshold)
+downregulated1 <- data1_clean %>% filter(log2FoldChange < -logfc_threshold, padj < padj_threshold)
+
+upregulated2 <- data2_clean %>% filter(log2FoldChange > logfc_threshold, padj < padj_threshold)
+downregulated2 <- data2_clean %>% filter(log2FoldChange < -logfc_threshold, padj < padj_threshold)
+
+
+# result statistics
+cat("File 1 (A_vs_E):\n")
+cat("Number of significantly upregulated genes:", nrow(upregulated1), "\n")
+cat("Number of significantly downregulated genes:", nrow(downregulated1), "\n")
+cat("\nFile 2 (I_vs_E):\n")
+cat("Number of significantly upregulated genes:", nrow(upregulated2), "\n")
+cat("Number of significantly downregulated genes:", nrow(downregulated2), "\n")
+
+library(ggplot2)
+#A_VS_E
+data1_clean <- data1_clean %>%
+  mutate(Significant = case_when(
+    log2FoldChange > logfc_threshold & padj < padj_threshold ~ "Upregulated",
+    log2FoldChange < -logfc_threshold & padj < padj_threshold ~ "Downregulated",
+    TRUE ~ "Not Significant"
+  ))
+ggplot(data1_clean, aes(x = log2FoldChange, y = -log10(pvalue), color = Significant)) +
+  geom_point(alpha = 0.5) +
+  scale_color_manual(values = c("Upregulated" = "red", "Downregulated" = "blue", "Not Significant" = "grey")) +
+  labs(title = "Volcano Plot: A_vs_E", x = "Log2 Fold Change", y = "-Log10(p-value)") +
+  theme(legend.position = "top")
+
+# I_vs_E 
+data2_clean <- data2_clean %>%
+  mutate(Significant = case_when(
+    log2FoldChange > logfc_threshold & padj < padj_threshold ~ "Upregulated",
+    log2FoldChange < -logfc_threshold & padj < padj_threshold ~ "Downregulated",
+    TRUE ~ "Not Significant"
+  ))
+ggplot(data2_clean, aes(x = log2FoldChange, y = -log10(pvalue), color = Significant)) +
+  geom_point(alpha = 0.5) +
+  scale_color_manual(values = c("Upregulated" = "red", "Downregulated" = "blue", "Not Significant" = "grey")) +
+  labs(title = "Volcano Plot: I_vs_E", x = "Log2 Fold Change", y = "-Log10(p-value)") +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+# A_vs_E OF MA 
+ggplot(data1_clean, aes(x = baseMean, y = log2FoldChange)) +
+  geom_point(alpha = 0.5) +
+  scale_x_log10() + 
+  labs(title = "MA Plot: A_vs_E", x = "Mean Expression (log10 scale)", y = "Log2 Fold Change") 
+
+# I_vs_E OF MA
+ggplot(data2_clean, aes(x = baseMean, y = log2FoldChange)) +
+  geom_point(alpha = 0.5) +
+  scale_x_log10() +
+  labs(title = "MA Plot: I_vs_E", x = "Mean Expression (log10 scale)", y = "Log2 Fold Change") 
+
+# A_vs_E OF p VALUE
+ggplot(data1_clean, aes(x = pvalue)) +
+  geom_histogram(binwidth = 0.05, fill = "green", color = "black") +
+  labs(title = "P-value Distribution: A_vs_E", x = "P-value", y = "Frequency") 
+
+# I_vs_E OF p VALUE
+ggplot(data2_clean, aes(x = pvalue)) +
+  geom_histogram(binwidth = 0.05, fill = "green", color = "black") +
+  labs(title = "P-value Distribution: I_vs_E", x = "P-value", y = "Frequency") 
+
+
+#signifature genes of A_E
+top_genes <- data1_clean %>%
+  filter(padj < 0.05 & abs(log2FoldChange) > 1) %>%
+  arrange(padj) %>%
+  head(50)
+
+#matrix
+heatmap_data <- top_genes %>%
+  select(gene_id, log2FoldChange) %>%
+  column_to_rownames("gene_id")
+heatmap_matrix <- as.matrix(heatmap_data)
+
+library(pheatmap)
+pheatmap(heatmap_matrix,
+         cluster_rows = TRUE,
+         cluster_cols = FALSE,
+         main = "Heatmap of Top 50 Genes: A_vs_E",
+         color = colorRampPalette(c("blue", "white", "red"))(50))
+
+
+
+# signifature genes of I_E
+top_genes_2 <- data2_clean %>%
+  filter(padj < 0.05 & abs(log2FoldChange) > 1) %>%
+  arrange(padj) %>%
+  head(50)  
+
+heatmap_data_2 <- top_genes_2 %>%
+  select(gene_id, log2FoldChange) %>%
+  column_to_rownames("gene_id")
+heatmap_matrix_2 <- as.matrix(heatmap_data_2)
+
+library(pheatmap)
+pheatmap(heatmap_matrix_2,
+         cluster_rows = TRUE,
+         cluster_cols = FALSE,
+         main = "Heatmap of Top 50 Genes: I_vs_E")
+
+
+write.csv(top_genes, "Top_50_Genes_A_vs_E.csv", row.names = FALSE)
+write.csv(top_genes_2, "Top_50_Genes_I_vs_E.csv", row.names = FALSE)
+
+
